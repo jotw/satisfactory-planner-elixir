@@ -8,18 +8,6 @@ defmodule Calculator do
     ]
 
 
-    def test( resource_name, required_amount ) do
-        
-        state = init()
-        resources = state.resources
-        
-        number_of_required_buildings = calculate_number_of_required_buildings(resources[resource_name], required_amount )
-        resource = resources[resource_name]
-        
-        calculate_required_resources_per_minute( number_of_required_buildings, resource, resource.inputs )
-        |> calculate_resources(state)
-    end
-
     # create an initial state
     def init() do 
         %Calculator{
@@ -39,7 +27,7 @@ defmodule Calculator do
 
     # application loop
     def loop( state ) do
-        # init screen
+        # clear console
         [ IO.ANSI.clear(), IO.ANSI.cursor(1,0) ]    
         |> IO.write()
         
@@ -64,51 +52,66 @@ defmodule Calculator do
         
     # handle calculation request. If user input is resource name and number of required inputs
     def handle_input( [resource_name, required_amount], state  = %{resources: resources} ) do
-       state = Map.put( state, :request, {resource_name, required_amount} )
        {required_amount, ""} = Integer.parse(required_amount)
-       resource = resources[resource_name]       
-       calculate_resources( [{resource, required_amount}], state )
+       state = Map.put( state, :request, {resource_name, required_amount} )
+       calculate_resources( [%{resource: resource_name, amount: required_amount}], state )
     end
 
-    
+    def test( resource_name, required_amount ) do
+        
+        state = init()
+        state = Map.put( state, :request, {resource_name, required_amount} )
+        resources = state.resources
+        
+
+        number_of_required_buildings = calculate_number_of_required_buildings(resources[resource_name], required_amount )
+        resource = resources[resource_name]
+        
+        calculate_required_resources_per_minute( number_of_required_buildings, resource, resource.inputs )
+        |> calculate_resources(state)
+        |> view_result()
+
+    end    
 
     # termination function for calculation loop
     def calculate_resources( [], state ) do
-        # state
+        state
     end
 
     # calculation resources in a calculation loop
     def calculate_resources( [%{resource: resource_name, amount: required_amount} | tail ], state  = %{resources: resources} ) do
         resource = resources[resource_name]
         state = add_request(resource_name, required_amount, state)
-        IO.puts("#{resource_name} #{required_amount}")
-        if (resource.type == :compound) do
+        state = if (resource.type == :compound) do
             
             number_of_required_buildings = calculate_number_of_required_buildings(resource, required_amount )
             resource = resources[resource_name]
             
-            calculate_required_resources_per_minute( number_of_required_buildings, resource, resource.inputs )
-            |> calculate_resources(state)
-            #%{state | required_resources_per_minute: rrpm}
-            
+            calced = calculate_required_resources_per_minute( number_of_required_buildings, resource, resource.inputs )
+            calculate_resources(calced, state)
+        else 
+            state
         end
+        state = calculate_resources(List.flatten([tail]), state)
         
-        calculate_resources(List.flatten([tail]), state)
     end
 
     # save the requested resource
     def add_request(resource, amount, state) do
-        new_state = 
-         if Map.has_key?(state.required_resources, resource) do
+        
+         state = if Map.has_key?(state.required_resources, resource) do
+
              required_resources = state.required_resources
              required_resources = Map.put(required_resources, resource, (required_resources[resource] + amount))
              %{state |  required_resources: required_resources}
              
          else 
-             required_resources = state.required_resources
-             required_resources = Map.put(required_resources, resource, amount)
-             %{state |  required_resources: required_resources}
-         end
+
+            required_resources = state.required_resources
+            required_resources = Map.put(required_resources, resource, amount)
+            %{state |  required_resources: required_resources}
+        end
+        state
     end
 
     # calculate number of required buildings
@@ -133,7 +136,10 @@ defmodule Calculator do
     end
 
     def view_command_line() do
-        ["Gebe Resource und gewuenschte Anzahl pro Minute an\n", "(z.B. Eisenplatten 10)", ":" ]
+        ["Gebe Resource und gewuenschte Anzahl pro Minute an",
+        "\n", 
+        "(z.B. Eisenplatten 10)", ":" 
+        ]
     end
 
     def view_header() do
@@ -142,30 +148,12 @@ defmodule Calculator do
         "Einfache Fabriken Planung \n\n" ]
     end
 
-    def view_result( %{request: {resource, amount}, required_buildings: req_b} ) do
-        [ resource, ": ", amount, "\n", "benoetigte Gebaeude #{req_b}", "\n\n" ]
+    def view_result( state = %{request: {resource, amount}, required_resources: required_resources} ) do
+       req = Enum.map(required_resources, fn {req_resource, req_amount} -> ["\t", req_resource, ":", "#{req_amount}", "\n" ] end)
+       ["\n\n", resource, ": ", "#{amount}", "\n\n", "benoetigte Ressourcen \n", req,  "\n\n" ]
     end
 
     def view_result( _state ), do: ["\n\n"]
 
-    
-   
-   
-
-#    defp vote(election, {id, ""}) do
-#        # cancidates = Enum.map(election.candidates, &maybe_inc_vote(&1, id))
-#    end
-
-#    defp maybe_increase_vote(candidate, id) when is_integer(id) do
-#        maybe_increase_vote(candidate, candidate.id == id)
-#    end
-
-#    defp maybe_increase_vote(candidate, _inc_vote = false) do 
-#     candidate
-#     end
-   
-
-#    defp maybe_increase_vote(candidate, _inc_vote = true) do 
-#         Enum.update(candidate, :votes, &(&1 + 1) )
-#    end
+      
 end
