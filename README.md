@@ -4,9 +4,13 @@
 
 ## Start
 
-cd in Projektverezeichnis
-> iex -S mix
-> Calculator.test("VerstaerkteEisenplatten", 15)
+cd in Projektverzeichnis
+```
+iex -S mix
+iex> Calculator.test("VerstaerkteEisenplatten", 15)
+```
 
 Der eigentliche Application Loop wirft noch Fehler:
-> Calculator.run
+```
+iex> Calculator.run
+```
