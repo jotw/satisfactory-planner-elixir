@@ -1,21 +1,12 @@
-# SatisfactoryPlanner
+# SatisfactoryPlanner - Elixir Edition
 
-**TODO: Add description**
 
-## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `satisfactory_planner` to your list of dependencies in `mix.exs`:
+## Start
 
-```elixir
-def deps do
-  [
-    {:satisfactory_planner, "~> 0.1.0"}
-  ]
-end
-```
+cd in Projektverezeichnis
+> iex -S mix
+> Calculator.test("VerstaerkteEisenplatten", 15)
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/satisfactory_planner](https://hexdocs.pm/satisfactory_planner).
-
+Der eigentliche Application Loop wirft noch Fehler:
+> Calculator.run
