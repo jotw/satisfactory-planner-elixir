@@ -10,7 +10,8 @@ iex -S mix
 iex> Calculator.test("VerstaerkteEisenplatten", 15)
 ```
 
-Der eigentliche Application Loop wirft noch Fehler:
+Jetzt auch mit Application Loop :-)
 ```
 iex> Calculator.run
 ```
+Danach Eingabe: VerstaerkteEisenplatten 15
