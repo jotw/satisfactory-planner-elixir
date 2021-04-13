@@ -1,6 +1,6 @@
 # Satisfactory Planner - Elixir Edition
 
-First small elixir project to get a feeling for the language.
+First small elixir project to get a feeling for the language.  
 Don't know what Satisfactory is: https://www.satisfactorygame.com/
 
 ## Current Featurelist (rich as hell):
