@@ -1,17 +1,20 @@
-# SatisfactoryPlanner - Elixir Edition
+# Satisfactory Planner - Elixir Edition
 
+First small elixir project to get a feeling for the language.
+Don't know what Satisfactory is: https://www.satisfactorygame.com/
 
+## Current Featurelist (rich as hell):
 
-## Start
+\* Enter a resource and the desired quanity and get a list of resources you need to build them
 
-cd in Projektverzeichnis
-```
+## Run it yourself
+
+- Install Elixir: https://elixir-lang.org/install.html
+- cd into project directory
+
+```elixir
 iex -S mix
-iex> Calculator.test("VerstaerkteEisenplatten", 15)
-```
-
-Jetzt auch mit Application Loop :-)
-```
 iex> Calculator.run
+
+(z.B. Eisenplatten 10):> VerstaerkteEisenplatten 15
 ```
-Danach Eingabe: VerstaerkteEisenplatten 15
