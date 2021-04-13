@@ -1,4 +1,6 @@
 defmodule Calculator do
+    import Gui
+
     defstruct [
         buildings: %{},
         resources: %{},
@@ -7,6 +9,19 @@ defmodule Calculator do
         required_resources: %{}
     ]
 
+    def test( resource_name, required_amount ) do
+        
+        state = init()
+        state = Map.put( state, :request, {resource_name, required_amount} )
+        resources = state.resources
+
+        number_of_required_buildings = calculate_number_of_required_buildings(resources[resource_name], required_amount )
+        resource = resources[resource_name]
+        
+        calculate_required_resources_per_minute( number_of_required_buildings, resource, resource.inputs )
+        |> calculate_resources(state)
+        |> view_result()
+    end    
 
     # create an initial state
     def init() do 
@@ -16,7 +31,7 @@ defmodule Calculator do
         }
     end
 
-    # inital call without paramters. Creates an inital state starts loop
+    # inital call without paramters. Creates an inital state and starts loop
     def run() do
         init()
         |> loop()
@@ -27,51 +42,52 @@ defmodule Calculator do
 
     # application loop
     def loop( state ) do
-        # clear console
-        [ IO.ANSI.clear(), IO.ANSI.cursor(1,0) ]    
-        |> IO.write()
         
-        # build view
+        # build view and handle input
         state
-        |> view()
-        |> IO.write()
+        |> build_view()
+        |> handle_input()
+        
+        # let it loop
+        |> loop()
+    end
+       
 
-        # handle input and execute command
+    # handle input and execute command
+    def handle_input(state) do
         command = IO.gets( ">" )
         command
         |> String.split()
+        |> validate_input()
         |> handle_input(state)
+    end
 
-        # let it loop
-        |> loop()
-    
+    # @todo: unschoen, da validate_input und handle_input für dieses matching quasi redundant!
+    def validate_input( ["q" <> _] ), do: ["q"]
+
+    def validate_input([resource_name, required_amount]) do
+       case Integer.parse(required_amount) do
+          {required_amount, ""} -> [resource_name, required_amount]
+          :error -> [:error, "Die Menge der Resourcen muss eine Ganzzahl sein!\n"]
+       end
     end
 
     # handle quit. If user input is "q" or anything longer
     def handle_input( ["q" <> _], _state ), do: :quit
-        
+
+    # handle error. If user input is invalid
+    def handle_input( [:error, message], state )  do
+     clear_console()
+     IO.puts(message)
+     IO.gets( "Zum Fortsetzen return druecken" )
+     state
+    end   
+
     # handle calculation request. If user input is resource name and number of required inputs
     def handle_input( [resource_name, required_amount], state  = %{resources: resources} ) do
-       {required_amount, ""} = Integer.parse(required_amount)
        state = Map.put( state, :request, {resource_name, required_amount} )
        calculate_resources( [%{resource: resource_name, amount: required_amount}], state )
     end
-
-    def test( resource_name, required_amount ) do
-        
-        state = init()
-        state = Map.put( state, :request, {resource_name, required_amount} )
-        resources = state.resources
-        
-
-        number_of_required_buildings = calculate_number_of_required_buildings(resources[resource_name], required_amount )
-        resource = resources[resource_name]
-        
-        calculate_required_resources_per_minute( number_of_required_buildings, resource, resource.inputs )
-        |> calculate_resources(state)
-        |> view_result()
-
-    end    
 
     # termination function for calculation loop
     def calculate_resources( [], state ) do
@@ -126,34 +142,6 @@ defmodule Calculator do
     def calculate_required_resources_per_minute(number_of_required_buildings, resource = %{production_rate: production_rate, output: output}, [head | tail] ) do
         result = [%{resource: head.resource, amount: (number_of_required_buildings * (production_rate * head.amount) / output)}]
         List.flatten([calculate_required_resources_per_minute(number_of_required_buildings, resource, tail ) | result])
-    end
-
-    
-
-
-    def view( state ) do
-        [ view_header(), view_result(state), view_command_line() ]
-    end
-
-    def view_command_line() do
-        ["Gebe Resource und gewuenschte Anzahl pro Minute an",
-        "\n", 
-        "(z.B. Eisenplatten 10)", ":" 
-        ]
-    end
-
-    def view_header() do
-        [ "S A T I S F A C T O R Y  P L A N N E R", 
-        "\n", 
-        "Einfache Fabriken Planung \n\n" ]
-    end
-
-    def view_result( state = %{request: {resource, amount}, required_resources: required_resources} ) do
-       req = Enum.map(required_resources, fn {req_resource, req_amount} -> ["\t", req_resource, ":", "#{req_amount}", "\n" ] end)
-       ["\n\n", resource, ": ", "#{amount}", "\n\n", "benoetigte Ressourcen \n", req,  "\n\n" ]
-    end
-
-    def view_result( _state ), do: ["\n\n"]
-
+    end    
       
 end
