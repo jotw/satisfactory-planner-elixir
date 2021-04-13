@@ -9,17 +9,17 @@ defmodule Calculator do
         required_resources: %{}
     ]
 
-    def test( resource_name, required_amount ) do
+    def test( resource_name, quantity ) do
         
         state = init()
-        state = Map.put( state, :request, {resource_name, required_amount} )
+        state = Map.put( state, :request, {resource_name, quantity} )
         resources = state.resources
 
-        number_of_required_buildings = calculate_number_of_required_buildings(resources[resource_name], required_amount )
+        number_of_required_buildings = calculate_number_of_required_buildings(resources[resource_name], quantity )
         resource = resources[resource_name]
         
-        calculate_required_resources_per_minute( number_of_required_buildings, resource, resource.inputs )
-        |> calculate_resources(state)
+        calculate_required_input_resources( number_of_required_buildings, resource, resource.inputs )
+        |> request_resources(state)
         |> view_result()
     end    
 
@@ -51,24 +51,24 @@ defmodule Calculator do
         # let it loop
         |> loop()
     end
-       
-
+     
     # handle input and execute command
     def handle_input(state) do
         command = IO.gets( ">" )
         command
         |> String.split()
-        |> validate_input()
+        |> validate_input(state)
         |> handle_input(state)
     end
 
     # @todo: unschoen, da validate_input und handle_input für dieses matching quasi redundant!
-    def validate_input( ["q" <> _] ), do: ["q"]
+    def validate_input( ["q" <> _], _state ), do: ["q"]
 
-    def validate_input([resource_name, required_amount]) do
-       case Integer.parse(required_amount) do
-          {required_amount, ""} -> [resource_name, required_amount]
-          :error -> [:error, "Die Menge der Resourcen muss eine Ganzzahl sein!\n"]
+    def validate_input([resource_name, quantity], state) do
+       case Map.has_key?(state.resources, resource_name) and Integer.parse(quantity) do
+            {quantity, ""} -> [resource_name, quantity]
+            :error -> [:error, "Bitte geben eine Zahl ein!\n"]     
+            false -> [:error, "Die Resource exisitert nicht!\n"]    
        end
     end
 
@@ -77,71 +77,63 @@ defmodule Calculator do
 
     # handle error. If user input is invalid
     def handle_input( [:error, message], state )  do
-     clear_console()
-     IO.puts(message)
-     IO.gets( "Zum Fortsetzen return druecken" )
-     state
+        clear_console()
+        IO.puts(message)
+        IO.gets( "Zum Fortsetzen return druecken" )
+        state
     end   
 
     # handle calculation request. If user input is resource name and number of required inputs
-    def handle_input( [resource_name, required_amount], state  = %{resources: resources} ) do
-       state = Map.put( state, :request, {resource_name, required_amount} )
-       calculate_resources( [%{resource: resource_name, amount: required_amount}], state )
+    def handle_input( [resource_name, quantity], state ) do
+       state = Map.put( state, :request, {resource_name, quantity} )
+       request_resources( [%{resource: resource_name, quantity: quantity}], state )
     end
 
-    # termination function for calculation loop
-    def calculate_resources( [], state ) do
+    # termination function for calculation recursion
+    def request_resources( [], state ) do
         state
     end
 
-    # calculation resources in a calculation loop
-    def calculate_resources( [%{resource: resource_name, amount: required_amount} | tail ], state  = %{resources: resources} ) do
+    # get required buildings and input resources and perform these calculations for the input resources as well and perform these calc.... recursion until list of resources is empty)
+    def request_resources( [%{resource: resource_name, quantity: quantity} | tail ], state  = %{resources: resources} ) do
         resource = resources[resource_name]
-        state = add_request(resource_name, required_amount, state)
-        state = if (resource.type == :compound) do
-            
-            number_of_required_buildings = calculate_number_of_required_buildings(resource, required_amount )
-            resource = resources[resource_name]
-            
-            calced = calculate_required_resources_per_minute( number_of_required_buildings, resource, resource.inputs )
-            calculate_resources(calced, state)
-        else 
-            state
-        end
-        state = calculate_resources(List.flatten([tail]), state)
-        
+        state = save_request(resource_name, quantity, state, Map.has_key?(state.required_resources, resource_name))
+        state = perform_resource_calculations(resource, quantity, state)
+        state = request_resources(List.flatten([tail]), state)
+        state
     end
 
-    # save the requested resource
-    def add_request(resource, amount, state) do
-        
-         state = if Map.has_key?(state.required_resources, resource) do
+    def perform_resource_calculations(resource, quantity, state) when resource.type == :compound do
+        calculate_number_of_required_buildings(resource, quantity )
+        |> calculate_required_input_resources( resource, resource.inputs )
+        |> request_resources( state)
+    end
 
-             required_resources = state.required_resources
-             required_resources = Map.put(required_resources, resource, (required_resources[resource] + amount))
-             %{state |  required_resources: required_resources}
-             
-         else 
+    def perform_resource_calculations(resource, _quantity, state) when resource.type == :source, do: state
 
-            required_resources = state.required_resources
-            required_resources = Map.put(required_resources, resource, amount)
-            %{state |  required_resources: required_resources}
-        end
-        state
+    # save the requested resource to state (for later output)
+    def save_request(resource_name, quantity, state, _resource_already_requested = true) do
+        required_resources = Map.update!(state.required_resources, resource_name, &(&1+quantity))
+        Map.put(state, :required_resources, required_resources)
+    end
+
+    def save_request(resource_name, quantity, state,  _resource_already_requested = false) do
+        required_resources = Map.put(state.required_resources, resource_name, quantity)
+        Map.put(state, :required_resources, required_resources)
     end
 
     # calculate number of required buildings
-    def calculate_number_of_required_buildings(%{production_rate: production_rate}, required_amount ), do: (required_amount / production_rate) 
+    def calculate_number_of_required_buildings(%{production_rate: production_rate}, quantity ), do: (quantity / production_rate) 
 
     ## termination function. if list of input resources is empty
-    def calculate_required_resources_per_minute(_, _, [] ) do
+    def calculate_required_input_resources(_, _, [] ) do
         []
     end
 
-    # calculate number of required input resources 
-    def calculate_required_resources_per_minute(number_of_required_buildings, resource = %{production_rate: production_rate, output: output}, [head | tail] ) do
-        result = [%{resource: head.resource, amount: (number_of_required_buildings * (production_rate * head.amount) / output)}]
-        List.flatten([calculate_required_resources_per_minute(number_of_required_buildings, resource, tail ) | result])
+    # calculate type and number of required input resources
+    def calculate_required_input_resources(number_of_required_buildings, resource = %{production_rate: production_rate, output: output}, [head | tail] ) do
+        result = [%{resource: head.resource, quantity: (number_of_required_buildings * (production_rate * head.quantity) / output)}]
+        List.flatten([calculate_required_input_resources(number_of_required_buildings, resource, tail ) | result])
     end    
       
 end
